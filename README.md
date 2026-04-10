@@ -21,6 +21,8 @@ docker compose up --build -d
 
 Run server locally (without Docker API container):
 ```bash
+export DATABASE_URL="postgres://taskflow:taskflow@localhost:5432/taskflow?sslmode=disable"
+export JWT_SECRET="super-secret-change-me"
 go run ./cmd/server
 ```
 
@@ -112,7 +114,7 @@ flowchart LR
 flowchart TB
     CL[Client Layer\nHTTP Requests]
     RL[Router Layer\nChi]
-    ML[Middleware Layer\nJWT Auth, Logger, CORS]
+    ML[Middleware Layer\nJWT Auth, Logger]
     HL[Handler Layer\nBusiness Logic]
     RE[Repository Layer\nDB Queries]
     DB[(Database Layer\nPostgreSQL)]
