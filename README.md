@@ -1,177 +1,203 @@
-# TaskFlow Backend (Go + PostgreSQL)
+# TaskFlow Backend (Go)
+
+TaskFlow is a backend-first task management system built for the engineering take-home assignment. It provides authenticated project and task management APIs with PostgreSQL persistence, SQL migrations, seed data, and Docker-based local setup.
 
 ## 1. Overview
-This submission implements the **backend track** of the TaskFlow take-home in Go.
 
-It provides:
-- JWT-based authentication (`/auth/register`, `/auth/login`)
-- Project CRUD with ownership enforcement
-- Task CRUD with status/assignee filters
-- PostgreSQL schema via versioned SQL migrations (up + down)
-- Dockerized local environment with one-command startup
-- Seed data (test user, project, and 3 tasks with different statuses)
+This project implements the **Backend Engineer** track requirements.
 
-### Tech Stack
+Features implemented:
+- User registration and login with JWT auth
+- Project CRUD with ownership authorization
+- Task CRUD with status and assignee filters
+- Task stats endpoint per project (bonus)
+- Pagination support on list endpoints (bonus)
+- Structured JSON error responses and status-code semantics
+- PostgreSQL migrations and seeded test data
+- Dockerized setup with one-command startup
+
+Tech stack:
 - Go 1.23
-- `chi` router
+- Chi router
 - PostgreSQL 16
-- `pgx` / `pgxpool`
-- `golang-migrate` (migration runner in app startup)
-- `bcrypt` for password hashing (cost 12)
-- JWT (`HS256`, 24h expiry) with `user_id` + `email` claims
-- Structured logging via `slog`
+- pgx / pgxpool
+- golang-migrate
+- bcrypt (cost 12)
+- JWT (24h expiry, includes user_id and email claims)
+- slog structured logging
 
 ## 2. Architecture Decisions
-### Why this structure
-- `cmd/server`: app entrypoint + graceful shutdown
-- `internal/config`: env-driven configuration
-- `internal/db`: DB connection + migration orchestration
-- `internal/repository`: SQL-centric data access layer
-- `internal/httpapi`: handlers, request validation, error contracts
-- `internal/httpapi/middleware`: auth and request logging
-- `migrations`: explicit SQL schema history
-- `scripts/seed.sql`: deterministic demo data
 
-### Tradeoffs
-- I intentionally used plain SQL (not an ORM) to keep behavior explicit and migration-safe.
-- I used a repository layer rather than introducing service abstractions where they would be thin wrappers.
-- Validation is handler-level and explicit for clarity over generic validation frameworks.
+### Project structure
+- cmd/server: app entrypoint and graceful shutdown
+- internal/app: dependency wiring and router composition
+- internal/httpapi: handlers, request validation, response contracts
+- internal/httpapi/middleware: auth and request logging middleware
+- internal/repository: SQL data access and query logic
+- internal/auth: JWT creation and parsing
+- internal/db: DB connection and migration runner
+- migrations: versioned SQL up/down files
+- scripts/seed.sql: deterministic seed data
 
-### Intentional omissions
-- No React frontend in this repository (backend-role submission).
-- No full integration test suite yet (Postman collection included for API verification).
-- No refresh token flow (access-token-only per assignment scope).
+### Key design choices
+- Plain SQL over ORM: explicit control over schema, queries, and performance.
+- Repository layer: keeps handlers focused on HTTP concerns.
+- Strict auth boundaries: 401 for missing/invalid auth, 403 for forbidden actions.
+- Migration-at-startup: predictable schema on container boot.
+
+### Tradeoffs and omissions
+- Backend-only submission (no React frontend).
+- Unit tests added; no full end-to-end integration test harness yet.
+- Refresh tokens and role-based memberships are intentionally out of scope.
 
 ## 3. Running Locally
-Assumption: Docker + Docker Compose are installed.
+
+Prerequisites:
+- Docker + Docker Compose
+
+### Option A: With Makefile (recommended)
 
 ```bash
-git clone <your-repo-url>
-cd Greening-India-Assingment
-cp .env.example .env
-docker compose up --build
+git clone https://github.com/capricorn-32/taskflow-abhishek.git
+cd taskflow-abhishek
+make docker-up
 ```
 
-### Makefile shortcuts
-```bash
-make deps
-make test
-make run        # run API locally (requires env vars)
-make docker-up  # start full stack via Docker
-make docker-down
-make vuln-scan
-```
+The `docker-up` target auto-creates `.env` from `.env.example` if missing.
 
-Services:
-- API: `http://localhost:8080`
-- Postgres: `localhost:5432`
+Service URLs:
+- API: http://localhost:8080
+- Postgres: localhost:5432
 
-Health check:
+Verify health:
+
 ```bash
 curl http://localhost:8080/health
 ```
 
-To stop:
+Stop services:
+
 ```bash
-docker compose down
+make docker-down
 ```
 
-To remove DB volume too:
+### Option B: Raw Docker Compose
+
 ```bash
-docker compose down -v
+git clone https://github.com/capricorn-32/taskflow-abhishek.git
+cd taskflow-abhishek
+cp .env.example .env
+docker compose up --build -d
 ```
 
 ## 4. Running Migrations
-Migrations run automatically on API startup when:
+
+Migrations run automatically on API startup using:
 - `AUTO_MIGRATE=true`
 - `MIGRATIONS_PATH=file://migrations`
-
-These are already set in `docker-compose.yml`.
 
 Migration files:
 - `migrations/000001_init.up.sql`
 - `migrations/000001_init.down.sql`
 
+If needed, you can reset and rerun with:
+
+```bash
+make docker-down
+docker volume rm greening-india-assingment_pgdata || true
+make docker-up
+```
+
 ## 5. Test Credentials
-Seed data (`scripts/seed.sql`) creates:
 
-- Email: `test@example.com`
-- Password: `password123`
+Seed user credentials:
+- Email: test@example.com
+- Password: password123
 
-Seeded IDs:
-- User ID: `11111111-1111-1111-1111-111111111111`
-- Project ID: `22222222-2222-2222-2222-222222222222`
+Seeded project ID:
+- 22222222-2222-2222-2222-222222222222
 
 ## 6. API Reference
-Base URL: `http://localhost:8080`
 
-All non-auth endpoints require:
-`Authorization: Bearer <token>`
+Base URL:
+- http://localhost:8080
+
+Auth header for protected endpoints:
+- `Authorization: Bearer <token>`
 
 ### Auth
-- `POST /auth/register`
-- `POST /auth/login`
-
-Example request:
-```json
-{
-  "name": "Jane Doe",
-  "email": "jane@example.com",
-  "password": "secret123"
-}
-```
-
-Example login response:
-```json
-{
-  "token": "<jwt>",
-  "user": {
-    "id": "uuid",
-    "name": "Jane Doe",
-    "email": "jane@example.com"
-  }
-}
-```
+- POST `/auth/register`
+- POST `/auth/login`
 
 ### Projects
-- `GET /projects` (supports `?page=&limit=`)
-- `POST /projects`
-- `GET /projects/:id` (returns project + tasks)
-- `PATCH /projects/:id` (owner only)
-- `DELETE /projects/:id` (owner only)
-- `GET /projects/:id/stats` (bonus: counts by status and assignee)
+- GET `/projects` (supports `?page=&limit=`)
+- POST `/projects`
+- GET `/projects/:id`
+- PATCH `/projects/:id` (owner only)
+- DELETE `/projects/:id` (owner only)
+- GET `/projects/:id/stats` (bonus)
 
 ### Tasks
-- `GET /projects/:id/tasks?status=todo&assignee=<uuid>&page=1&limit=20`
-- `POST /projects/:id/tasks`
-- `PATCH /tasks/:id`
-- `DELETE /tasks/:id` (project owner or task creator)
+- GET `/projects/:id/tasks?status=todo&assignee=<uuid>&page=1&limit=20`
+- POST `/projects/:id/tasks`
+- PATCH `/tasks/:id`
+- DELETE `/tasks/:id` (project owner or task creator)
 
-Example create task request:
-```json
-{
-  "title": "Design homepage",
-  "description": "Initial layout",
-  "status": "todo",
-  "priority": "high",
-  "assignee_id": "11111111-1111-1111-1111-111111111111",
-  "due_date": "2026-04-30"
-}
-```
-
-### Error Contracts
+### Error contract
 - `400`: `{ "error": "validation failed", "fields": { ... } }`
 - `401`: `{ "error": "unauthorized" }`
 - `403`: `{ "error": "forbidden" }`
 - `404`: `{ "error": "not found" }`
 
-### Postman
-A ready collection is included at:
+### Request examples
+Login:
+
+```bash
+curl -X POST http://localhost:8080/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"test@example.com","password":"password123"}'
+```
+
+Create project:
+
+```bash
+curl -X POST http://localhost:8080/projects \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"New Project","description":"Optional"}'
+```
+
+Create task:
+
+```bash
+curl -X POST http://localhost:8080/projects/22222222-2222-2222-2222-222222222222/tasks \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Design homepage","priority":"high","status":"todo","due_date":"2026-04-30"}'
+```
+
+Postman collection:
 - `postman/taskflow.postman_collection.json`
 
 ## 7. What I'd Do With More Time
-- Add integration tests with a disposable Postgres container for auth + task authorization flows.
-- Add rate limiting and login brute-force protections.
-- Add OpenAPI spec generation and request/response contract tests.
-- Add role-based project membership model beyond owner/task-based access.
-- Add CI pipeline (lint, tests, image build, vulnerability scan).
+
+- Add integration tests against ephemeral Postgres (auth + authorization flows).
+- Add OpenAPI spec generation and contract validation.
+- Add refresh-token flow and token rotation.
+- Add rate limiting and brute-force protection for login.
+- Add CI pipeline for lint, test, vulnerability scan, and container build.
+
+## Useful Make Targets
+
+```bash
+make help
+make deps
+make test
+make run
+make build
+make docker-up
+make docker-ps
+make docker-logs
+make docker-down
+make vuln-scan
+```
