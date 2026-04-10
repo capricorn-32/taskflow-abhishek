@@ -49,7 +49,10 @@ func New(cfg config.Config, logger *slog.Logger) (*App, error) {
 	r.Use(authmw.RequestLogger(logger))
 
 	r.Get("/health", h.Health)
-	r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")))
+	r.Get("/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+		httpSwagger.PersistAuthorization(true),
+	))
 
 	r.Route("/auth", func(r chi.Router) {
 		h.RegisterAuthRoutes(r)
