@@ -4,7 +4,7 @@
     ],
     "swagger": "2.0",
     "info": {
-        "description": "TaskFlow backend API for authentication, projects, and task management.\n\nValidation errors return `400` with `{ \"error\": \"validation failed\", \"fields\": { ... } }`.",
+        "description": "TaskFlow backend API for authentication, projects, and task management.\n\nValidation errors return `400` with `{ \"error\": \"validation failed\", \"fields\": { ... } }`.\nFor protected endpoints, the Authorization header must be: `Bearer \u003cJWT_TOKEN\u003e`.\nIn Swagger UI Authorize dialog, paste the value exactly as `Bearer \u003cJWT_TOKEN\u003e`.",
         "title": "TaskFlow API",
         "contact": {},
         "version": "1.0"
@@ -1116,7 +1116,7 @@
     },
     "securityDefinitions": {
         "BearerAuth": {
-            "description": "Provide JWT as `Bearer \u003ctoken\u003e`.",
+            "description": "Required format: `Bearer \u003cJWT_TOKEN\u003e`.",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"

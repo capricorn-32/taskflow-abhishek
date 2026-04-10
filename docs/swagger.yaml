@@ -213,6 +213,8 @@ info:
     TaskFlow backend API for authentication, projects, and task management.
 
     Validation errors return `400` with `{ "error": "validation failed", "fields": { ... } }`.
+    For protected endpoints, the Authorization header must be: `Bearer <JWT_TOKEN>`.
+    In Swagger UI Authorize dialog, paste the value exactly as `Bearer <JWT_TOKEN>`.
   title: TaskFlow API
   version: "1.0"
 paths:
@@ -765,7 +767,7 @@ schemes:
 - http
 securityDefinitions:
   BearerAuth:
-    description: Provide JWT as `Bearer <token>`.
+    description: 'Required format: `Bearer <JWT_TOKEN>`.'
     in: header
     name: Authorization
     type: apiKey

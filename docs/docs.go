@@ -1120,7 +1120,7 @@ const docTemplate = `{
     },
     "securityDefinitions": {
         "BearerAuth": {
-            "description": "Provide JWT as ` + "`" + `Bearer \u003ctoken\u003e` + "`" + `.",
+            "description": "Required format: ` + "`" + `Bearer \u003cJWT_TOKEN\u003e` + "`" + `.",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
@@ -1135,7 +1135,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{"http"},
 	Title:            "TaskFlow API",
-	Description:      "TaskFlow backend API for authentication, projects, and task management.\n\nValidation errors return `400` with `{ \"error\": \"validation failed\", \"fields\": { ... } }`.",
+	Description:      "TaskFlow backend API for authentication, projects, and task management.\n\nValidation errors return `400` with `{ \"error\": \"validation failed\", \"fields\": { ... } }`.\nFor protected endpoints, the Authorization header must be: `Bearer <JWT_TOKEN>`.\nIn Swagger UI Authorize dialog, paste the value exactly as `Bearer <JWT_TOKEN>`.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

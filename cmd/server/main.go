@@ -21,12 +21,14 @@ import (
 // @description TaskFlow backend API for authentication, projects, and task management.
 // @description
 // @description Validation errors return `400` with `{ "error": "validation failed", "fields": { ... } }`.
+// @description For protected endpoints, the Authorization header must be: `Bearer <JWT_TOKEN>`.
+// @description In Swagger UI Authorize dialog, paste the value exactly as `Bearer <JWT_TOKEN>`.
 // @BasePath /
 // @schemes http
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
-// @description Provide JWT as `Bearer <token>`.
+// @description Required format: `Bearer <JWT_TOKEN>`.
 
 func main() {
 	cfg, err := config.Load()

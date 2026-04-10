@@ -166,6 +166,11 @@ Swagger UI is served by the API at:
 http://localhost:8080/swagger/index.html
 ```
 
+For protected endpoints in Swagger UI:
+- Click `Authorize`
+- Enter `Authorization` value as `Bearer <JWT_TOKEN>`
+- Do not paste raw token without the `Bearer ` prefix
+
 ### Request examples
 Login:
 
