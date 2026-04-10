@@ -27,6 +27,12 @@ go run ./cmd/server
 ```
 
 Default API port: `8080`.
+Swagger API docs: `http://localhost:8080/swagger/index.html`.
+
+Regenerate OpenAPI docs after API annotation changes:
+```bash
+make swagger
+```
 
 ## 4. Environment Variables
 | Variable | Description | Example Value |
