@@ -15,8 +15,7 @@ It provides JWT-protected endpoints, SQL migrations, and Docker-based local setu
 git clone https://github.com/capricorn-32/taskflow-abhishek.git
 cd taskflow-abhishek
 go mod tidy
-cp .env.example .env
-docker compose up --build -d
+make docker-up
 ```
 
 Run server locally (without Docker API container):
@@ -24,6 +23,16 @@ Run server locally (without Docker API container):
 export DATABASE_URL="postgres://taskflow:taskflow@localhost:5432/taskflow?sslmode=disable"
 export JWT_SECRET="super-secret-change-me"
 go run ./cmd/server
+```
+
+Run server in local development mode with live reload (Air):
+```bash
+make dev
+```
+
+Run Docker stack in development mode (API + Air hot reload):
+```bash
+make docker-dev-up
 ```
 
 Default API port: `8080`.
@@ -98,6 +107,8 @@ Special setup step: if `.env` does not exist, create it from `.env.example` befo
 ├── scripts/seed.sql                   # Seed data script
 ├── docs/                              # Swagger/OpenAPI generated docs
 ├── docker-compose.yml                 # Local API + PostgreSQL stack
+├── docker-compose.dev.yml             # Docker development override (Air hot reload)
+├── .air.toml                          # Air live-reload configuration
 └── Makefile                           # Common development commands
 ```
 
@@ -157,4 +168,20 @@ make test
 - Integration tests (requires a running PostgreSQL and optional `TEST_DATABASE_URL`):
 ```bash
 TEST_DATABASE_URL="postgres://taskflow:taskflow@localhost:5432/taskflow?sslmode=disable" go test ./internal/httpapi -run Integration
+```
+
+## 13. Useful Make Commands
+```bash
+make help
+make ensure-env
+make format
+make test
+make build
+make swagger
+make docker-up
+make docker-down
+make docker-dev-up
+make docker-dev-down
+make docker-ps
+make docker-dev-ps
 ```

@@ -1,0 +1,26 @@
+services:
+  api:
+    image: golang:1.23-alpine
+    container_name: taskflow-api-dev
+    working_dir: /app
+    command: ["sh", "-c", "go run github.com/cosmtrek/air@v1.49.0 -c .air.toml"]
+    environment:
+      HTTP_ADDR: ":8080"
+      DATABASE_URL: postgres://${POSTGRES_USER:-taskflow}:${POSTGRES_PASSWORD:-taskflow}@postgres:5432/${POSTGRES_DB:-taskflow}?sslmode=disable
+      JWT_SECRET: ${JWT_SECRET:-super-secret-change-me}
+      JWT_ISSUER: taskflow
+      AUTO_MIGRATE: "true"
+      MIGRATIONS_PATH: file://migrations
+      LOG_LEVEL: debug
+      DEFAULT_PAGE_SIZE: 20
+      MAX_PAGE_SIZE: 100
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./:/app
+      - gocache:/go/pkg/mod
+      - gobuildcache:/root/.cache/go-build
+
+volumes:
+  gocache:
+  gobuildcache:

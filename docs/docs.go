@@ -1101,7 +1101,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "priority": {
-                    "type": "string"
+                    "$ref": "#/definitions/taskflow_backend_internal_repository.TaskPriority"
                 },
                 "project_id": {
                     "type": "string"
@@ -1116,6 +1116,20 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "taskflow_backend_internal_repository.TaskPriority": {
+            "type": "integer",
+            "format": "int32",
+            "enum": [
+                1,
+                2,
+                3
+            ],
+            "x-enum-varnames": [
+                "TaskPriorityLow",
+                "TaskPriorityMedium",
+                "TaskPriorityHigh"
+            ]
         }
     },
     "securityDefinitions": {

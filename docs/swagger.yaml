@@ -197,7 +197,7 @@ definitions:
       id:
         type: string
       priority:
-        type: string
+        $ref: '#/definitions/taskflow_backend_internal_repository.TaskPriority'
       project_id:
         type: string
       status:
@@ -207,6 +207,17 @@ definitions:
       updated_at:
         type: string
     type: object
+  taskflow_backend_internal_repository.TaskPriority:
+    enum:
+    - 1
+    - 2
+    - 3
+    format: int32
+    type: integer
+    x-enum-varnames:
+    - TaskPriorityLow
+    - TaskPriorityMedium
+    - TaskPriorityHigh
 info:
   contact: {}
   description: |-
