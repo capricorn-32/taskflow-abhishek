@@ -14,6 +14,7 @@ import (
 )
 
 var ErrNotFound = errors.New("not found")
+var ErrDuplicateEmail = errors.New("duplicate email")
 
 type Store struct {
 	db *pgxpool.Pool
@@ -33,7 +34,7 @@ func (s *Store) CreateUser(ctx context.Context, name, email, passwordHash string
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return User{}, fmt.Errorf("duplicate email")
+			return User{}, ErrDuplicateEmail
 		}
 		return User{}, err
 	}

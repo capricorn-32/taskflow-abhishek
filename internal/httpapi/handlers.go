@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -70,8 +69,8 @@ func (h *Handler) RegisterProtectedRoutes(r chi.Router) {
 // @Router /auth/register [post]
 func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteValidationError(w, map[string]string{"body": "invalid json"})
+	if err := decodeJSONBody(w, r, &req); err != nil {
+		WriteValidationError(w, map[string]string{"body": err.Error()})
 		return
 	}
 
@@ -98,7 +97,7 @@ func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.store.CreateUser(r.Context(), strings.TrimSpace(req.Name), strings.ToLower(strings.TrimSpace(req.Email)), string(hash))
 	if err != nil {
-		if strings.Contains(err.Error(), "duplicate email") {
+		if errors.Is(err, repository.ErrDuplicateEmail) {
 			WriteValidationError(w, map[string]string{"email": "already in use"})
 			return
 		}
@@ -137,8 +136,8 @@ func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 // @Router /auth/login [post]
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteValidationError(w, map[string]string{"body": "invalid json"})
+	if err := decodeJSONBody(w, r, &req); err != nil {
+		WriteValidationError(w, map[string]string{"body": err.Error()})
 		return
 	}
 
@@ -237,8 +236,8 @@ func (h *Handler) createProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req ProjectUpsertRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteValidationError(w, map[string]string{"body": "invalid json"})
+	if err := decodeJSONBody(w, r, &req); err != nil {
+		WriteValidationError(w, map[string]string{"body": err.Error()})
 		return
 	}
 
@@ -362,8 +361,8 @@ func (h *Handler) updateProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req ProjectUpsertRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteValidationError(w, map[string]string{"body": "invalid json"})
+	if err := decodeJSONBody(w, r, &req); err != nil {
+		WriteValidationError(w, map[string]string{"body": err.Error()})
 		return
 	}
 	if strings.TrimSpace(req.Name) == "" {
@@ -533,8 +532,8 @@ func (h *Handler) createTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req TaskCreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteValidationError(w, map[string]string{"body": "invalid json"})
+	if err := decodeJSONBody(w, r, &req); err != nil {
+		WriteValidationError(w, map[string]string{"body": err.Error()})
 		return
 	}
 
@@ -643,8 +642,8 @@ func (h *Handler) updateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req TaskUpdateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteValidationError(w, map[string]string{"body": "invalid json"})
+	if err := decodeJSONBody(w, r, &req); err != nil {
+		WriteValidationError(w, map[string]string{"body": err.Error()})
 		return
 	}
 

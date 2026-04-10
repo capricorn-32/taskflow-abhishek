@@ -134,3 +134,27 @@ flowchart TB
     RE --> HL
     HL --> CL
 ```
+
+## 10. Architecture Decisions
+- Layered structure (`httpapi -> repository -> postgres`) keeps HTTP concerns separate from SQL and improves testability.
+- Plain SQL with migration files was chosen over an ORM for explicit schema control and predictable queries.
+- JWT auth is applied at router-group level so protected routes are enforced consistently.
+- Automatic migrations on startup prioritize reviewer experience (`docker compose up` should be enough).
+- Tradeoff: the project favors clarity and assignment scope over advanced patterns like domain events or CQRS.
+
+## 11. What Is Missing / Next Improvements
+- Add more end-to-end integration tests for auth, authorization, and task lifecycle paths.
+- Add rate limiting and login brute-force protection for production hardening.
+- Add request timeout middleware and per-route timeout tuning.
+- Add CI pipeline for tests, linting, Swagger drift check, and vulnerability scan.
+- Add refresh-token flow and token rotation strategy for long-lived sessions.
+
+## 12. Tests
+- Unit tests:
+```bash
+make test
+```
+- Integration tests (requires a running PostgreSQL and optional `TEST_DATABASE_URL`):
+```bash
+TEST_DATABASE_URL="postgres://taskflow:taskflow@localhost:5432/taskflow?sslmode=disable" go test ./internal/httpapi -run Integration
+```
