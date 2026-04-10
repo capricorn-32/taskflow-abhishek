@@ -1,10 +1,11 @@
 APP_NAME=taskflow-api
 
-.PHONY: help deps test run build swagger docker-up docker-down docker-logs docker-ps vuln-scan ensure-env
+.PHONY: help deps format test run build swagger docker-up docker-down docker-logs docker-ps vuln-scan ensure-env
 
 help:
 	@echo "Available targets:"
 	@echo "  deps       - download and tidy Go dependencies"
+	@echo "  format     - format all Go files"
 	@echo "  test       - run unit tests"
 	@echo "  run        - run API locally (needs DATABASE_URL, JWT_SECRET, etc.)"
 	@echo "  build      - build API binary"
@@ -17,6 +18,9 @@ help:
 
 deps:
 	go mod tidy
+
+format:
+	gofmt -w $$(find . -name '*.go' -not -path './vendor/*')
 
 test:
 	go test ./...
