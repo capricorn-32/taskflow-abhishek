@@ -199,9 +199,15 @@ func (s *Store) ListTasksByProject(ctx context.Context, projectID uuid.UUID, fil
 	tasks := make([]Task, 0)
 	for rows.Next() {
 		var t Task
-		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Status, &t.Priority, &t.ProjectID, &t.AssigneeID, &t.CreatorID, &t.DueDate, &t.CreatedAt, &t.UpdatedAt); err != nil {
+		var priorityRaw string
+		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Status, &priorityRaw, &t.ProjectID, &t.AssigneeID, &t.CreatorID, &t.DueDate, &t.CreatedAt, &t.UpdatedAt); err != nil {
 			return nil, err
 		}
+		priority, err := ParseTaskPriority(priorityRaw)
+		if err != nil {
+			return nil, err
+		}
+		t.Priority = priority
 		tasks = append(tasks, t)
 	}
 
@@ -210,32 +216,44 @@ func (s *Store) ListTasksByProject(ctx context.Context, projectID uuid.UUID, fil
 
 func (s *Store) CreateTask(ctx context.Context, input Task) (Task, error) {
 	var t Task
+	var priorityRaw string
 	err := s.db.QueryRow(ctx, `
 		INSERT INTO tasks (title, description, status, priority, project_id, assignee_id, creator_id, due_date)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, title, description, status, priority, project_id, assignee_id, creator_id, due_date, created_at, updated_at
-	`, input.Title, input.Description, input.Status, input.Priority, input.ProjectID, input.AssigneeID, input.CreatorID, input.DueDate).Scan(
-		&t.ID, &t.Title, &t.Description, &t.Status, &t.Priority, &t.ProjectID, &t.AssigneeID, &t.CreatorID, &t.DueDate, &t.CreatedAt, &t.UpdatedAt,
+	`, input.Title, input.Description, input.Status, input.Priority.String(), input.ProjectID, input.AssigneeID, input.CreatorID, input.DueDate).Scan(
+		&t.ID, &t.Title, &t.Description, &t.Status, &priorityRaw, &t.ProjectID, &t.AssigneeID, &t.CreatorID, &t.DueDate, &t.CreatedAt, &t.UpdatedAt,
 	)
 	if err != nil {
 		return Task{}, err
 	}
+	priority, err := ParseTaskPriority(priorityRaw)
+	if err != nil {
+		return Task{}, err
+	}
+	t.Priority = priority
 	return t, nil
 }
 
 func (s *Store) GetTaskByID(ctx context.Context, id uuid.UUID) (Task, error) {
 	var t Task
+	var priorityRaw string
 	err := s.db.QueryRow(ctx, `
 		SELECT id, title, description, status, priority, project_id, assignee_id, creator_id, due_date, created_at, updated_at
 		FROM tasks
 		WHERE id = $1
-	`).Scan(&t.ID, &t.Title, &t.Description, &t.Status, &t.Priority, &t.ProjectID, &t.AssigneeID, &t.CreatorID, &t.DueDate, &t.CreatedAt, &t.UpdatedAt)
+	`).Scan(&t.ID, &t.Title, &t.Description, &t.Status, &priorityRaw, &t.ProjectID, &t.AssigneeID, &t.CreatorID, &t.DueDate, &t.CreatedAt, &t.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return Task{}, ErrNotFound
 		}
 		return Task{}, err
 	}
+	priority, err := ParseTaskPriority(priorityRaw)
+	if err != nil {
+		return Task{}, err
+	}
+	t.Priority = priority
 	return t, nil
 }
 
@@ -261,6 +279,17 @@ func (s *Store) UpdateTask(ctx context.Context, taskID uuid.UUID, fields map[str
 		if _, ok := allowedColumns[key]; !ok {
 			return Task{}, fmt.Errorf("invalid update field: %s", key)
 		}
+		if key == "priority" {
+			s, ok := value.(string)
+			if !ok {
+				return Task{}, fmt.Errorf("invalid priority payload")
+			}
+			parsed, err := ParseTaskPriority(s)
+			if err != nil {
+				return Task{}, err
+			}
+			value = parsed.String()
+		}
 		setParts = append(setParts, fmt.Sprintf("%s = $%d", key, idx))
 		args = append(args, value)
 		idx++
@@ -276,8 +305,9 @@ func (s *Store) UpdateTask(ctx context.Context, taskID uuid.UUID, fields map[str
 	`, strings.Join(setParts, ", "), idx)
 
 	var t Task
+	var priorityRaw string
 	err := s.db.QueryRow(ctx, query, args...).Scan(
-		&t.ID, &t.Title, &t.Description, &t.Status, &t.Priority, &t.ProjectID, &t.AssigneeID, &t.CreatorID, &t.DueDate, &t.CreatedAt, &t.UpdatedAt,
+		&t.ID, &t.Title, &t.Description, &t.Status, &priorityRaw, &t.ProjectID, &t.AssigneeID, &t.CreatorID, &t.DueDate, &t.CreatedAt, &t.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -285,6 +315,11 @@ func (s *Store) UpdateTask(ctx context.Context, taskID uuid.UUID, fields map[str
 		}
 		return Task{}, err
 	}
+	priority, err := ParseTaskPriority(priorityRaw)
+	if err != nil {
+		return Task{}, err
+	}
+	t.Priority = priority
 	return t, nil
 }
 

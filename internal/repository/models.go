@@ -26,17 +26,17 @@ type Project struct {
 
 // Task represents a unit of work belonging to a project.
 type Task struct {
-	ID          uuid.UUID  `json:"id"`
-	Title       string     `json:"title"`
-	Description string     `json:"description,omitempty"`
-	Status      string     `json:"status"`
-	Priority    string     `json:"priority"`
-	ProjectID   uuid.UUID  `json:"project_id"`
-	AssigneeID  *uuid.UUID `json:"assignee_id,omitempty"`
-	CreatorID   uuid.UUID  `json:"creator_id"`
-	DueDate     *time.Time `json:"due_date,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID          uuid.UUID    `json:"id"`
+	Title       string       `json:"title"`
+	Description string       `json:"description,omitempty"`
+	Status      string       `json:"status"`
+	Priority    TaskPriority `json:"priority"`
+	ProjectID   uuid.UUID    `json:"project_id"`
+	AssigneeID  *uuid.UUID   `json:"assignee_id,omitempty"`
+	CreatorID   uuid.UUID    `json:"creator_id"`
+	DueDate     *time.Time   `json:"due_date,omitempty"`
+	CreatedAt   time.Time    `json:"created_at"`
+	UpdatedAt   time.Time    `json:"updated_at"`
 }
 
 type TaskFilters struct {

@@ -3,6 +3,8 @@ package httpapi
 import (
 	"net/http/httptest"
 	"testing"
+
+	"taskflow/backend/internal/repository"
 )
 
 func TestPaginationDefaults(t *testing.T) {
@@ -39,10 +41,10 @@ func TestStatusAndPriorityValidation(t *testing.T) {
 		t.Fatal("expected invalid status to fail")
 	}
 
-	if !isValidPriority("low") || !isValidPriority("medium") || !isValidPriority("high") {
+	if !isValidPriority(repository.TaskPriorityLow) || !isValidPriority(repository.TaskPriorityMedium) || !isValidPriority(repository.TaskPriorityHigh) {
 		t.Fatal("expected valid priorities to pass")
 	}
-	if isValidPriority("urgent") {
+	if isValidPriority(repository.TaskPriority(99)) {
 		t.Fatal("expected invalid priority to fail")
 	}
 }

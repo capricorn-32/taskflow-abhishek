@@ -548,9 +548,10 @@ func (h *Handler) createTask(w http.ResponseWriter, r *http.Request) {
 		fields["status"] = "must be one of todo|in_progress|done"
 	}
 	if req.Priority == "" {
-		req.Priority = "medium"
+		req.Priority = repository.TaskPriorityMedium.String()
 	}
-	if !isValidPriority(req.Priority) {
+	priorityValue, err := repository.ParseTaskPriority(req.Priority)
+	if err != nil {
 		fields["priority"] = "must be one of low|medium|high"
 	}
 
@@ -578,7 +579,7 @@ func (h *Handler) createTask(w http.ResponseWriter, r *http.Request) {
 		Title:       strings.TrimSpace(req.Title),
 		Description: strings.TrimSpace(req.Description),
 		Status:      req.Status,
-		Priority:    req.Priority,
+		Priority:    priorityValue,
 		ProjectID:   projectID,
 		AssigneeID:  assigneeID,
 		CreatorID:   userID,
@@ -668,10 +669,11 @@ func (h *Handler) updateTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if req.Priority != nil {
-		if !isValidPriority(*req.Priority) {
+		priorityValue, err := repository.ParseTaskPriority(*req.Priority)
+		if err != nil {
 			fields["priority"] = "must be one of low|medium|high"
 		} else {
-			updates["priority"] = *req.Priority
+			updates["priority"] = priorityValue.String()
 		}
 	}
 	if req.AssigneeID != nil {
@@ -841,13 +843,8 @@ func isValidStatus(v string) bool {
 	}
 }
 
-func isValidPriority(v string) bool {
-	switch v {
-	case "low", "medium", "high":
-		return true
-	default:
-		return false
-	}
+func isValidPriority(v repository.TaskPriority) bool {
+	return v.IsValid()
 }
 
 func extractCounterMap(src map[string]any, key string) map[string]int {
