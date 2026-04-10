@@ -1,225 +1,128 @@
-# TaskFlow Backend (Go)
+# TaskFlow Backend API
 
-TaskFlow is a backend-first task management system built for the engineering take-home assignment. It provides authenticated project and task management APIs with PostgreSQL persistence, SQL migrations, seed data, and Docker-based local setup.
+## 1. Project Overview
+TaskFlow is a RESTful API backend built with Go (Chi router) and PostgreSQL for authentication, project management, and task management.
+It provides JWT-protected endpoints, SQL migrations, and Docker-based local setup.
 
-## 1. Overview
+## 2. Prerequisites
+- Go 1.23+
+- PostgreSQL 16+
+- Docker 24+ and Docker Compose v2+
+- Make 4.x (optional, for helper commands)
 
-This project implements the **Backend Engineer** track requirements.
-
-Features implemented:
-- User registration and login with JWT auth
-- Project CRUD with ownership authorization
-- Task CRUD with status and assignee filters
-- Task stats endpoint per project (bonus)
-- Pagination support on list endpoints (bonus)
-- Structured JSON error responses and status-code semantics
-- PostgreSQL migrations and seeded test data
-- Dockerized setup with one-command startup
-
-Tech stack:
-- Go 1.23
-- Chi router
-- PostgreSQL 16
-- pgx / pgxpool
-- golang-migrate
-- bcrypt (cost 12)
-- JWT (24h expiry, includes user_id and email claims)
-- slog structured logging
-
-## 2. Architecture Decisions
-
-### Project structure
-- cmd/server: app entrypoint and graceful shutdown
-- internal/app: dependency wiring and router composition
-- internal/httpapi: handlers, request validation, response contracts
-- internal/httpapi/middleware: auth and request logging middleware
-- internal/repository: SQL data access and query logic
-- internal/auth: JWT creation and parsing
-- internal/db: DB connection and migration runner
-- migrations: versioned SQL up/down files
-- scripts/seed.sql: deterministic seed data
-
-### Key design choices
-- Plain SQL over ORM: explicit control over schema, queries, and performance.
-- Repository layer: keeps handlers focused on HTTP concerns.
-- Strict auth boundaries: 401 for missing/invalid auth, 403 for forbidden actions.
-- Migration-at-startup: predictable schema on container boot.
-
-### Tradeoffs and omissions
-- Backend-only submission (no React frontend).
-- Unit tests added; no full end-to-end integration test harness yet.
-- Refresh tokens and role-based memberships are intentionally out of scope.
-
-## 3. Running Locally
-
-Prerequisites:
-- Docker + Docker Compose
-
-### Option A: With Makefile (recommended)
-
+## 3. Setup & Installation
 ```bash
 git clone https://github.com/capricorn-32/taskflow-abhishek.git
 cd taskflow-abhishek
-make docker-up
-```
-
-The `docker-up` target auto-creates `.env` from `.env.example` if missing.
-
-Service URLs:
-- API: http://localhost:8080
-- Swagger UI: http://localhost:8080/swagger/index.html
-- Postgres: localhost:5432
-
-Verify health:
-
-```bash
-curl http://localhost:8080/health
-```
-
-Stop services:
-
-```bash
-make docker-down
-```
-
-### Option B: Raw Docker Compose
-
-```bash
-git clone https://github.com/capricorn-32/taskflow-abhishek.git
-cd taskflow-abhishek
+go mod tidy
 cp .env.example .env
 docker compose up --build -d
 ```
 
-## 4. Running Migrations
-
-Migrations run automatically on API startup using:
-- `AUTO_MIGRATE=true`
-- `MIGRATIONS_PATH=file://migrations`
-
-Migration files:
-- `migrations/000001_init.up.sql`
-- `migrations/000001_init.down.sql`
-
-If needed, you can reset and rerun with:
-
+Run server locally (without Docker API container):
 ```bash
-make docker-down
-docker volume rm greening-india-assingment_pgdata || true
-make docker-up
+go run ./cmd/server
 ```
 
-## 5. Test Credentials
+Default API port: `8080`.
 
-Seed user credentials:
-- Email: test@example.com
-- Password: password123
+## 4. Environment Variables
+| Variable | Description | Example Value |
+|---|---|---|
+| `HTTP_ADDR` | HTTP bind address for API server | `:8080` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgres://taskflow:taskflow@localhost:5432/taskflow?sslmode=disable` |
+| `JWT_SECRET` | Secret key for JWT signing | `super-secret-change-me` |
+| `JWT_ISSUER` | JWT issuer claim | `taskflow` |
+| `AUTO_MIGRATE` | Run migrations on startup | `true` |
+| `MIGRATIONS_PATH` | Migration files location | `file://migrations` |
+| `LOG_LEVEL` | Application log level | `info` |
+| `DEFAULT_PAGE_SIZE` | Default pagination size | `20` |
+| `MAX_PAGE_SIZE` | Maximum pagination size | `100` |
+| `POSTGRES_DB` | PostgreSQL database name (Docker) | `taskflow` |
+| `POSTGRES_USER` | PostgreSQL user (Docker) | `taskflow` |
+| `POSTGRES_PASSWORD` | PostgreSQL password (Docker) | `taskflow` |
 
-Seeded project ID:
-- 22222222-2222-2222-2222-222222222222
-
-## 6. API Reference
-
-Base URL:
-- http://localhost:8080
-
-Auth header for protected endpoints:
-- `Authorization: Bearer <token>`
-
-### Auth
-- POST `/auth/register`
-- POST `/auth/login`
-
-### Projects
-- GET `/projects` (supports `?page=&limit=`)
-- POST `/projects`
-- GET `/projects/:id`
-- PATCH `/projects/:id` (owner only)
-- DELETE `/projects/:id` (owner only)
-- GET `/projects/:id/stats` (bonus)
-
-### Tasks
-- GET `/projects/:id/tasks?status=todo&assignee=<uuid>&page=1&limit=20`
-- POST `/projects/:id/tasks`
-- PATCH `/tasks/:id`
-- DELETE `/tasks/:id` (project owner or task creator)
-
-### Error contract
-- `400`: `{ "error": "validation failed", "fields": { ... } }`
-- `401`: `{ "error": "unauthorized" }`
-- `403`: `{ "error": "forbidden" }`
-- `404`: `{ "error": "not found" }`
-
-### OpenAPI / Swagger
-
-Swagger docs are generated with Swaggo and committed in `docs/`.
-
-Regenerate docs after changing handler annotations:
-
+## 5. Database Setup
+1. Start PostgreSQL and API with Docker:
 ```bash
-make swagger
+docker compose up --build -d
+```
+2. Create DB manually if running PostgreSQL outside Docker:
+```bash
+createdb taskflow
+```
+3. Run migrations (automatic on server start):
+```bash
+AUTO_MIGRATE=true MIGRATIONS_PATH=file://migrations go run ./cmd/server
 ```
 
-Swagger UI is served by the API at:
+Special setup step: if `.env` does not exist, create it from `.env.example` before starting services.
 
+## 6. API Endpoints
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/health` | Service health check | No |
+| `POST` | `/auth/register` | Register a new user | No |
+| `POST` | `/auth/login` | Login user and get JWT | No |
+| `GET` | `/projects` | List user-accessible projects | Yes |
+| `POST` | `/projects` | Create a project | Yes |
+| `GET` | `/projects/{id}` | Get project details | Yes |
+| `PATCH` | `/projects/{id}` | Update a project | Yes |
+| `DELETE` | `/projects/{id}` | Delete a project | Yes |
+| `GET` | `/projects/{id}/tasks` | List tasks in a project | Yes |
+| `POST` | `/projects/{id}/tasks` | Create a task in a project | Yes |
+| `GET` | `/projects/{id}/stats` | Get task statistics for a project | Yes |
+| `PATCH` | `/tasks/{id}` | Update a task | Yes |
+| `DELETE` | `/tasks/{id}` | Delete a task | Yes |
+
+## 7. Project Structure
 ```text
-http://localhost:8080/swagger/index.html
+.
+├── cmd/server/main.go                 # Application entrypoint
+├── internal/app/app.go                # Router and dependency wiring
+├── internal/config/config.go          # Environment-based config loader
+├── internal/httpapi/                  # HTTP handlers, DTOs, responses
+│   └── middleware/                    # Auth and request logging middleware
+├── internal/repository/               # SQL queries and data access layer
+├── internal/db/                       # DB connection and migration runner
+├── internal/auth/                     # JWT generation and validation
+├── migrations/                        # SQL migration files
+├── scripts/seed.sql                   # Seed data script
+├── docs/                              # Swagger/OpenAPI generated docs
+├── docker-compose.yml                 # Local API + PostgreSQL stack
+└── Makefile                           # Common development commands
 ```
 
-For protected endpoints in Swagger UI:
-- Click `Authorize`
-- Enter `Authorization` value as `Bearer <JWT_TOKEN>`
-- Do not paste raw token without the `Bearer ` prefix
-
-### Request examples
-Login:
-
-```bash
-curl -X POST http://localhost:8080/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"test@example.com","password":"password123"}'
+## 8. Request Flowchart
+```mermaid
+flowchart LR
+    A[Client Request] --> B[Chi Router]
+    B --> C[Middleware: Auth + Logger]
+    C --> D[HTTP Handler]
+    D --> E[Repository]
+    E --> F[(PostgreSQL)]
+    F --> E
+    E --> D
+    D --> G[JSON Response]
+    G --> H[Client]
 ```
 
-Create project:
+## 9. Backend Architecture
+```mermaid
+flowchart TB
+    CL[Client Layer\nHTTP Requests]
+    RL[Router Layer\nChi]
+    ML[Middleware Layer\nJWT Auth, Logger, CORS]
+    HL[Handler Layer\nBusiness Logic]
+    RE[Repository Layer\nDB Queries]
+    DB[(Database Layer\nPostgreSQL)]
 
-```bash
-curl -X POST http://localhost:8080/projects \
-  -H 'Authorization: Bearer <token>' \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"New Project","description":"Optional"}'
-```
-
-Create task:
-
-```bash
-curl -X POST http://localhost:8080/projects/22222222-2222-2222-2222-222222222222/tasks \
-  -H 'Authorization: Bearer <token>' \
-  -H 'Content-Type: application/json' \
-  -d '{"title":"Design homepage","priority":"high","status":"todo","due_date":"2026-04-30"}'
-```
-
-Postman collection:
-- `postman/taskflow.postman_collection.json`
-
-## 7. What I'd Do With More Time
-
-- Add integration tests against ephemeral Postgres (auth + authorization flows).
-- Add OpenAPI spec generation and contract validation.
-- Add refresh-token flow and token rotation.
-- Add rate limiting and brute-force protection for login.
-- Add CI pipeline for lint, test, vulnerability scan, and container build.
-
-## Useful Make Targets
-
-```bash
-make help
-make deps
-make test
-make run
-make build
-make docker-up
-make docker-ps
-make docker-logs
-make docker-down
-make vuln-scan
+    CL --> RL
+    RL --> ML
+    ML --> HL
+    HL --> RE
+    RE --> DB
+    DB --> RE
+    RE --> HL
+    HL --> CL
 ```
