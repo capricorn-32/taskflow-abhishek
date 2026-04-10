@@ -1,6 +1,6 @@
 APP_NAME=taskflow-api
 
-.PHONY: help deps test run build docker-up docker-down vuln-scan
+.PHONY: help deps test run build docker-up docker-down docker-logs docker-ps vuln-scan ensure-env
 
 help:
 	@echo "Available targets:"
@@ -8,8 +8,10 @@ help:
 	@echo "  test       - run unit tests"
 	@echo "  run        - run API locally (needs DATABASE_URL, JWT_SECRET, etc.)"
 	@echo "  build      - build API binary"
-	@echo "  docker-up  - start full stack with Docker"
+	@echo "  docker-up  - start full stack with Docker (detached)"
 	@echo "  docker-down- stop Docker stack"
+	@echo "  docker-ps  - show Docker stack status"
+	@echo "  docker-logs- follow Docker logs"
 	@echo "  vuln-scan  - run govulncheck and gosec"
 
 deps:
@@ -25,10 +27,18 @@ build:
 	go build -o bin/$(APP_NAME) ./cmd/server
 
 docker-up:
-	docker compose up --build
+	@if [ ! -f .env ]; then cp .env.example .env; fi
+	docker compose up --build -d
+	docker compose ps
 
 docker-down:
 	docker compose down
+
+docker-logs:
+	docker compose logs -f
+
+docker-ps:
+	docker compose ps
 
 vuln-scan:
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
