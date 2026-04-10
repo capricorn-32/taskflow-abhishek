@@ -10,9 +10,23 @@ import (
 	"syscall"
 	"time"
 
+	_ "taskflow/backend/docs"
+
 	"taskflow/backend/internal/app"
 	"taskflow/backend/internal/config"
 )
+
+// @title TaskFlow API
+// @version 1.0
+// @description TaskFlow backend API for authentication, projects, and task management.
+// @description
+// @description Validation errors return `400` with `{ "error": "validation failed", "fields": { ... } }`.
+// @BasePath /
+// @schemes http
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Provide JWT as `Bearer <token>`.
 
 func main() {
 	cfg, err := config.Load()

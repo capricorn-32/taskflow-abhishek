@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// User represents an authenticated account in the system.
 type User struct {
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`
@@ -14,6 +15,7 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// Project represents a work container that groups related tasks.
 type Project struct {
 	ID          uuid.UUID `json:"id"`
 	Name        string    `json:"name"`
@@ -22,6 +24,7 @@ type Project struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+// Task represents a unit of work belonging to a project.
 type Task struct {
 	ID          uuid.UUID  `json:"id"`
 	Title       string     `json:"title"`

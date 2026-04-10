@@ -5,6 +5,7 @@ import (
 	"net/http"
 )
 
+// ErrorResponse is the standard error payload returned by API endpoints.
 type ErrorResponse struct {
 	Error  string            `json:"error"`
 	Fields map[string]string `json:"fields,omitempty"`

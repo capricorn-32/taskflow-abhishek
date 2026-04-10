@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 
 	"taskflow/backend/internal/auth"
 	"taskflow/backend/internal/config"
@@ -47,9 +48,8 @@ func New(cfg config.Config, logger *slog.Logger) (*App, error) {
 	r.Use(middleware.Recoverer)
 	r.Use(authmw.RequestLogger(logger))
 
-	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
-		httpapi.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-	})
+	r.Get("/health", h.Health)
+	r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")))
 
 	r.Route("/auth", func(r chi.Router) {
 		h.RegisterAuthRoutes(r)

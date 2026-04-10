@@ -1,6 +1,6 @@
 APP_NAME=taskflow-api
 
-.PHONY: help deps test run build docker-up docker-down docker-logs docker-ps vuln-scan ensure-env
+.PHONY: help deps test run build swagger docker-up docker-down docker-logs docker-ps vuln-scan ensure-env
 
 help:
 	@echo "Available targets:"
@@ -8,6 +8,7 @@ help:
 	@echo "  test       - run unit tests"
 	@echo "  run        - run API locally (needs DATABASE_URL, JWT_SECRET, etc.)"
 	@echo "  build      - build API binary"
+	@echo "  swagger    - generate OpenAPI docs in ./docs"
 	@echo "  docker-up  - start full stack with Docker (detached)"
 	@echo "  docker-down- stop Docker stack"
 	@echo "  docker-ps  - show Docker stack status"
@@ -25,6 +26,9 @@ run:
 
 build:
 	go build -o bin/$(APP_NAME) ./cmd/server
+
+swagger:
+	go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g cmd/server/main.go -o docs --parseDependency --parseInternal
 
 docker-up:
 	@if [ ! -f .env ]; then cp .env.example .env; fi

@@ -27,6 +27,17 @@ func NewHandler(store *repository.Store, jwt *auth.JWTManager, defaultPageSize, 
 	return &Handler{store: store, jwt: jwt, defaultPageSize: defaultPageSize, maxPageSize: maxPageSize}
 }
 
+// Health godoc
+// @Summary Health check
+// @Description Returns service liveness status.
+// @Tags Health
+// @Produce json
+// @Success 200 {object} HealthResponse
+// @Router /health [get]
+func (h *Handler) Health(w http.ResponseWriter, _ *http.Request) {
+	WriteJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
+}
+
 func (h *Handler) RegisterAuthRoutes(r chi.Router) {
 	r.Post("/register", h.register)
 	r.Post("/login", h.login)
@@ -45,14 +56,20 @@ func (h *Handler) RegisterProtectedRoutes(r chi.Router) {
 	r.Delete("/tasks/{id}", h.deleteTask)
 }
 
-type registerRequest struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
+// register godoc
+// @Summary Register a new user
+// @Description Creates a user account and returns a JWT token.
+// @Description Validation rules: `name` and `email` are required, `password` must be at least 8 characters.
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param payload body RegisterRequest true "Registration payload"
+// @Success 201 {object} AuthResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /auth/register [post]
 func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
-	var req registerRequest
+	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		WriteValidationError(w, map[string]string{"body": "invalid json"})
 		return
@@ -95,23 +112,31 @@ func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	WriteJSON(w, http.StatusCreated, map[string]any{
-		"token": token,
-		"user": map[string]any{
-			"id":    user.ID,
-			"name":  user.Name,
-			"email": user.Email,
+	WriteJSON(w, http.StatusCreated, AuthResponse{
+		Token: token,
+		User: UserResponse{
+			ID:    user.ID,
+			Name:  user.Name,
+			Email: user.Email,
 		},
 	})
 }
 
-type loginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
+// login godoc
+// @Summary Login user
+// @Description Authenticates user credentials and returns a JWT token.
+// @Description Validation rules: `email` and `password` are required.
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param payload body LoginRequest true "Login payload"
+// @Success 200 {object} AuthResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /auth/login [post]
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
-	var req loginRequest
+	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		WriteValidationError(w, map[string]string{"body": "invalid json"})
 		return
@@ -150,16 +175,30 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	WriteJSON(w, http.StatusOK, map[string]any{
-		"token": token,
-		"user": map[string]any{
-			"id":    user.ID,
-			"name":  user.Name,
-			"email": user.Email,
+	WriteJSON(w, http.StatusOK, AuthResponse{
+		Token: token,
+		User: UserResponse{
+			ID:    user.ID,
+			Name:  user.Name,
+			Email: user.Email,
 		},
 	})
 }
 
+// listProjects godoc
+// @Summary List projects
+// @Description Lists projects where the current user is an owner, assignee, or task creator.
+// @Description Pagination: `page` and `limit` must be positive integers. `limit` is clamped to server max.
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Page size" default(20)
+// @Success 200 {object} ProjectListResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /projects [get]
 func (h *Handler) listProjects(w http.ResponseWriter, r *http.Request) {
 	userID, ok := UserIDFromContext(r.Context())
 	if !ok {
@@ -173,14 +212,23 @@ func (h *Handler) listProjects(w http.ResponseWriter, r *http.Request) {
 		WriteInternal(w)
 		return
 	}
-	WriteJSON(w, http.StatusOK, map[string]any{"projects": projects})
+	WriteJSON(w, http.StatusOK, ProjectListResponse{Projects: projects})
 }
 
-type createProjectRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-}
-
+// createProject godoc
+// @Summary Create project
+// @Description Creates a project with current user as owner.
+// @Description Validation rules: `name` is required and trimmed.
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Param payload body ProjectUpsertRequest true "Project payload"
+// @Success 201 {object} repository.Project
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /projects [post]
 func (h *Handler) createProject(w http.ResponseWriter, r *http.Request) {
 	userID, ok := UserIDFromContext(r.Context())
 	if !ok {
@@ -188,7 +236,7 @@ func (h *Handler) createProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req createProjectRequest
+	var req ProjectUpsertRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		WriteValidationError(w, map[string]string{"body": "invalid json"})
 		return
@@ -207,6 +255,21 @@ func (h *Handler) createProject(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusCreated, project)
 }
 
+// getProject godoc
+// @Summary Get project details
+// @Description Returns project details and tasks for an accessible project.
+// @Description Behavior: returns `404` for malformed/non-existent IDs and `403` when user has no access.
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Param id path string true "Project ID" format(uuid)
+// @Success 200 {object} ProjectDetailResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /projects/{id} [get]
 func (h *Handler) getProject(w http.ResponseWriter, r *http.Request) {
 	userID, ok := UserIDFromContext(r.Context())
 	if !ok {
@@ -245,16 +308,33 @@ func (h *Handler) getProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	WriteJSON(w, http.StatusOK, map[string]any{
-		"id":          project.ID,
-		"name":        project.Name,
-		"description": project.Description,
-		"owner_id":    project.OwnerID,
-		"created_at":  project.CreatedAt,
-		"tasks":       tasks,
+	WriteJSON(w, http.StatusOK, ProjectDetailResponse{
+		ID:          project.ID,
+		Name:        project.Name,
+		Description: project.Description,
+		OwnerID:     project.OwnerID,
+		CreatedAt:   project.CreatedAt,
+		Tasks:       tasks,
 	})
 }
 
+// updateProject godoc
+// @Summary Update project
+// @Description Updates project name and description.
+// @Description Authorization: only project owner can update. `name` is required.
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Param id path string true "Project ID" format(uuid)
+// @Param payload body ProjectUpsertRequest true "Project payload"
+// @Success 200 {object} repository.Project
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /projects/{id} [patch]
 func (h *Handler) updateProject(w http.ResponseWriter, r *http.Request) {
 	userID, ok := UserIDFromContext(r.Context())
 	if !ok {
@@ -281,7 +361,7 @@ func (h *Handler) updateProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req createProjectRequest
+	var req ProjectUpsertRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		WriteValidationError(w, map[string]string{"body": "invalid json"})
 		return
@@ -299,6 +379,21 @@ func (h *Handler) updateProject(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, updated)
 }
 
+// deleteProject godoc
+// @Summary Delete project
+// @Description Deletes a project and all tasks under it.
+// @Description Authorization: only project owner can delete.
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Param id path string true "Project ID" format(uuid)
+// @Success 204 {string} string "No Content"
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /projects/{id} [delete]
 func (h *Handler) deleteProject(w http.ResponseWriter, r *http.Request) {
 	userID, ok := UserIDFromContext(r.Context())
 	if !ok {
@@ -332,6 +427,26 @@ func (h *Handler) deleteProject(w http.ResponseWriter, r *http.Request) {
 	WriteNoContent(w)
 }
 
+// listTasks godoc
+// @Summary List tasks in project
+// @Description Lists tasks for an accessible project with optional status/assignee filters.
+// @Description Validation: `status` must be one of `todo|in_progress|done`; `assignee` must be UUID when provided.
+// @Tags Tasks
+// @Accept json
+// @Produce json
+// @Param id path string true "Project ID" format(uuid)
+// @Param status query string false "Task status" Enums(todo,in_progress,done)
+// @Param assignee query string false "Assignee user ID" format(uuid)
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Page size" default(20)
+// @Success 200 {object} TaskListResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /projects/{id}/tasks [get]
 func (h *Handler) listTasks(w http.ResponseWriter, r *http.Request) {
 	userID, ok := UserIDFromContext(r.Context())
 	if !ok {
@@ -374,18 +489,27 @@ func (h *Handler) listTasks(w http.ResponseWriter, r *http.Request) {
 		WriteInternal(w)
 		return
 	}
-	WriteJSON(w, http.StatusOK, map[string]any{"tasks": tasks})
+	WriteJSON(w, http.StatusOK, TaskListResponse{Tasks: tasks})
 }
 
-type createTaskRequest struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Status      string `json:"status"`
-	Priority    string `json:"priority"`
-	AssigneeID  string `json:"assignee_id"`
-	DueDate     string `json:"due_date"`
-}
-
+// createTask godoc
+// @Summary Create task
+// @Description Creates a task inside a project.
+// @Description Defaults: `status=todo`, `priority=medium` if omitted.
+// @Description Validation: `title` required; `status` in `todo|in_progress|done`; `priority` in `low|medium|high`; `due_date` in `YYYY-MM-DD`.
+// @Tags Tasks
+// @Accept json
+// @Produce json
+// @Param id path string true "Project ID" format(uuid)
+// @Param payload body TaskCreateRequest true "Task payload"
+// @Success 201 {object} repository.Task
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /projects/{id}/tasks [post]
 func (h *Handler) createTask(w http.ResponseWriter, r *http.Request) {
 	userID, ok := UserIDFromContext(r.Context())
 	if !ok {
@@ -408,7 +532,7 @@ func (h *Handler) createTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req createTaskRequest
+	var req TaskCreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		WriteValidationError(w, map[string]string{"body": "invalid json"})
 		return
@@ -468,15 +592,24 @@ func (h *Handler) createTask(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusCreated, task)
 }
 
-type updateTaskRequest struct {
-	Title       *string `json:"title"`
-	Description *string `json:"description"`
-	Status      *string `json:"status"`
-	Priority    *string `json:"priority"`
-	AssigneeID  *string `json:"assignee_id"`
-	DueDate     *string `json:"due_date"`
-}
-
+// updateTask godoc
+// @Summary Update task
+// @Description Partially updates task fields.
+// @Description Authorization: only project owner or task creator can update.
+// @Description Validation: if provided, `title` cannot be empty, `status` and `priority` must be valid enums, `due_date` must be `YYYY-MM-DD`.
+// @Tags Tasks
+// @Accept json
+// @Produce json
+// @Param id path string true "Task ID" format(uuid)
+// @Param payload body TaskUpdateRequest true "Partial task payload"
+// @Success 200 {object} repository.Task
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /tasks/{id} [patch]
 func (h *Handler) updateTask(w http.ResponseWriter, r *http.Request) {
 	userID, ok := UserIDFromContext(r.Context())
 	if !ok {
@@ -509,7 +642,7 @@ func (h *Handler) updateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req updateTaskRequest
+	var req TaskUpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		WriteValidationError(w, map[string]string{"body": "invalid json"})
 		return
@@ -580,6 +713,21 @@ func (h *Handler) updateTask(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, updated)
 }
 
+// deleteTask godoc
+// @Summary Delete task
+// @Description Deletes a task.
+// @Description Authorization: only project owner or task creator can delete.
+// @Tags Tasks
+// @Accept json
+// @Produce json
+// @Param id path string true "Task ID" format(uuid)
+// @Success 204 {string} string "No Content"
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /tasks/{id} [delete]
 func (h *Handler) deleteTask(w http.ResponseWriter, r *http.Request) {
 	userID, ok := UserIDFromContext(r.Context())
 	if !ok {
@@ -619,6 +767,20 @@ func (h *Handler) deleteTask(w http.ResponseWriter, r *http.Request) {
 	WriteNoContent(w)
 }
 
+// projectStats godoc
+// @Summary Project task statistics
+// @Description Returns aggregate counts by task status and assignee.
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Param id path string true "Project ID" format(uuid)
+// @Success 200 {object} ProjectStatsResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Security BearerAuth
+// @Router /projects/{id}/stats [get]
 func (h *Handler) projectStats(w http.ResponseWriter, r *http.Request) {
 	userID, ok := UserIDFromContext(r.Context())
 	if !ok {
@@ -645,7 +807,10 @@ func (h *Handler) projectStats(w http.ResponseWriter, r *http.Request) {
 		WriteInternal(w)
 		return
 	}
-	WriteJSON(w, http.StatusOK, stats)
+	WriteJSON(w, http.StatusOK, ProjectStatsResponse{
+		ByStatus:   extractCounterMap(stats, "by_status"),
+		ByAssignee: extractCounterMap(stats, "by_assignee"),
+	})
 }
 
 func (h *Handler) pagination(r *http.Request) (int, int) {
@@ -684,4 +849,34 @@ func isValidPriority(v string) bool {
 	default:
 		return false
 	}
+}
+
+func extractCounterMap(src map[string]any, key string) map[string]int {
+	out := map[string]int{}
+	v, ok := src[key]
+	if !ok {
+		return out
+	}
+
+	raw, ok := v.(map[string]int)
+	if ok {
+		return raw
+	}
+
+	m, ok := v.(map[string]any)
+	if !ok {
+		return out
+	}
+
+	for k, val := range m {
+		switch n := val.(type) {
+		case int:
+			out[k] = n
+		case int64:
+			out[k] = int(n)
+		case float64:
+			out[k] = int(n)
+		}
+	}
+	return out
 }

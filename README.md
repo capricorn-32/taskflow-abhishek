@@ -67,6 +67,7 @@ The `docker-up` target auto-creates `.env` from `.env.example` if missing.
 
 Service URLs:
 - API: http://localhost:8080
+- Swagger UI: http://localhost:8080/swagger/index.html
 - Postgres: localhost:5432
 
 Verify health:
@@ -148,6 +149,22 @@ Auth header for protected endpoints:
 - `401`: `{ "error": "unauthorized" }`
 - `403`: `{ "error": "forbidden" }`
 - `404`: `{ "error": "not found" }`
+
+### OpenAPI / Swagger
+
+Swagger docs are generated with Swaggo and committed in `docs/`.
+
+Regenerate docs after changing handler annotations:
+
+```bash
+make swagger
+```
+
+Swagger UI is served by the API at:
+
+```text
+http://localhost:8080/swagger/index.html
+```
 
 ### Request examples
 Login:
